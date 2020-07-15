@@ -1,7 +1,7 @@
-#FTP-Server
-##FTP server Class that can be started and stopped
+# FTP-Server
+## FTP server Class that can be started and stopped
 
-##Example
+## Example
 ```python
 >>> from ftp_server import FtpServer
 >>> FTP = FtpServer()
@@ -10,9 +10,9 @@
 [I 2020-07-15 17:17:48] masquerade (NAT) address: None
 [I 2020-07-15 17:17:48] passive ports: None
 >>> FTP.stop()
+```
 
-
-###When the ```stop()``` function is called, the thread will print an Exception to STDOUT, but this will not be an Exception for the codeblock calling the function
+### When the ```stop()``` function is called, the thread will print an Exception to STDOUT, but this will not be an Exception for the codeblock calling the function
 ```python
 >>> Exception in thread Thread-1:
 Traceback (most recent call last):
