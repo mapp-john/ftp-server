@@ -1,5 +1,5 @@
 # FTP-Server
-## FTP server Class that can be started and stopped programatically
+## FTP server Class that can be started and stopped programmatically
 ## With randomized username, password, RSA keys
 ## Ideal for on-demand FTP and SFTP file transfers
 
