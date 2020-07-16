@@ -154,11 +154,6 @@ class SftpServer(object):
         self.Dir = Dir
         self.Port = Port
         self.level = level
-        # Random user/pass and RSA key pair
-        self.user = Random_String()
-        self.Pass = Random_String()
-        self._keys = Random_RSA()
-        self._keyfile = self._keys['priv']
 
     class _STUBServer(ServerInterface):
         # SubClass of Paramiko ServerInterface
@@ -224,6 +219,12 @@ class SftpServer(object):
             self.srv.start()
 
     def start(self):
+        # Random user/pass and RSA key pair
+        self.user = Random_String()
+        self.Pass = Random_String()
+        self._keys = Random_RSA()
+        self._keyfile = self._keys['priv']
+
         # Start Thread calling Run Server function
         self.srv = threading.Thread(target=self._run_server)
         self.srv.deamon = True
@@ -233,6 +234,8 @@ class SftpServer(object):
         # Close server socket immediately
         # This will print a Threading Exception to STDOUT, but will not throw a true exception
         self.server_socket.close()
+        os.remove(self._keys['priv'])
+        os.remove(self._keys['pub'])
 
 
 
