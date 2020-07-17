@@ -4,8 +4,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="xftpd-mapp-john", # Replace with your own username
-    version="0.0.1",
+    name="xftpd",
+    version="0.0.Dev2",
     author="John Mapp",
     author_email="spidermonkey2012@gmail.com",
     description="XFTPD Server: SFTP and FTP server Class that can be started and stopped programmatically.",
