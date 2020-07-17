@@ -1,27 +1,7 @@
-# FTP-Server
-## FTP server Class that can be started and stopped programmatically
+# SFTP-Server
+## SFTP server Class that can be started and stopped programmatically
 ## With randomized username, password, RSA keys
-## Ideal for on-demand FTP and SFTP file transfers
-
-## FTP Example
-```python
-Python 3.7.4 (default, Sep  7 2019, 18:27:02)
-[Clang 10.0.1 (clang-1001.0.46.4)] on darwin
-Type "help", "copyright", "credits" or "license" for more information.
->>> from ftp_server import FtpServer
->>> FTP = FtpServer('/tmp')
->>> FTP.start()
-[I 2020-07-15 21:14:48] concurrency model: multi-thread
-[I 2020-07-15 21:14:48] masquerade (NAT) address: None
-[I 2020-07-15 21:14:48] passive ports: None
->>> print(SFTP.Addr)
-10.8.2.5
->>> print(FTP.user)
-h0Dy0Yq9Ks0Dm3T
->>> print(FTP.Pass)
-m5Sg2Yk5Mk8Fa4K
->>>
-```
+## Ideal for on-demand SFTP and FTP and file transfers
 
 ## SFTP Example
 ```python
@@ -52,6 +32,26 @@ sftp> dir
 new.py                       test.py
 sftp> bye
 [root@CentOS]#
+```
+
+## FTP Example
+```python
+Python 3.7.4 (default, Sep  7 2019, 18:27:02)
+[Clang 10.0.1 (clang-1001.0.46.4)] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from ftp_server import FtpServer
+>>> FTP = FtpServer('/tmp')
+>>> FTP.start()
+[I 2020-07-15 21:14:48] concurrency model: multi-thread
+[I 2020-07-15 21:14:48] masquerade (NAT) address: None
+[I 2020-07-15 21:14:48] passive ports: None
+>>> print(SFTP.Addr)
+10.8.2.5
+>>> print(FTP.user)
+h0Dy0Yq9Ks0Dm3T
+>>> print(FTP.Pass)
+m5Sg2Yk5Mk8Fa4K
+>>>
 ```
 
 ### When the ```stop()``` function is called, the thread will print an Exception to STDOUT, but this will not be an Exception for the codeblock calling the function
