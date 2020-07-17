@@ -14,6 +14,8 @@ Type "help", "copyright", "credits" or "license" for more information.
 [I 2020-07-15 21:14:48] concurrency model: multi-thread
 [I 2020-07-15 21:14:48] masquerade (NAT) address: None
 [I 2020-07-15 21:14:48] passive ports: None
+>>> print(SFTP.Addr)
+10.8.2.5
 >>> print(FTP.user)
 h0Dy0Yq9Ks0Dm3T
 >>> print(FTP.Pass)
@@ -27,6 +29,8 @@ m5Sg2Yk5Mk8Fa4K
 >>> SFTP = SftpServer('/tmp',2222)
 >>> SFTP.level = 'DEBUG'
 >>> SFTP.start()
+>>> print(SFTP.Addr)
+10.8.2.5
 >>> print(SFTP.user)
 w7Kg0Fo4Xp6Xo9C
 >>> print(SFTP.Pass)
