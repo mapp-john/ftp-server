@@ -84,6 +84,7 @@ class FtpServer(object):
             TEST = socket.socket()
             TEST.connect(("8.8.8.8", 80))
             self.Addr = TEST.getsockname()[0]
+            TEST.close()
         except:
             print(traceback.format_exc())
 
@@ -171,6 +172,7 @@ class SftpServer(object):
             TEST = socket.socket()
             TEST.connect(("8.8.8.8", 80))
             self.Addr = TEST.getsockname()[0]
+            TEST.close()
         except:
             print(traceback.format_exc())
 
