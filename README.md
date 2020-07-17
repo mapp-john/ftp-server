@@ -1,8 +1,8 @@
-#XFTPD
-##As a network automation engineer, do you get frustrated at not having instant access to an SFTP/FTP server when you need it most?!
-#Well look no further!
-##Simple, Secure, and Randomized...
-#Right at your fingertips, and ready for API integrations, you have come to the right Python Module!
+# __XFTPD__
+## _As a network automation engineer, do you get frustrated at not having instant access to an SFTP/FTP server when you need it most?!_
+# Well look no further!
+## _Simple, Secure, and Randomized..._
+## Right at your fingertips, and ready for API integrations, you have come to the right Python Module!
 # XFTPD Server
 ## SFTP and FTP server Class that can be started and stopped programmatically
 ## With randomized username, password, RSA keys
