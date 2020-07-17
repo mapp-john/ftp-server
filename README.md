@@ -1,5 +1,10 @@
-# SFTP-Server
-## SFTP server Class that can be started and stopped programmatically
+#XFTPD
+##As a network automation engineer, do you get frustrated at not having instant access to an SFTP/FTP server when you need it most?!
+#Well look no further!
+##Simple, Secure, and Randomized...
+#Right at your fingertips, and ready for API integrations, you have come to the right Python Module!
+# XFTPD Server
+## SFTP and FTP server Class that can be started and stopped programmatically
 ## With randomized username, password, RSA keys
 ## Ideal for on-demand SFTP and FTP and file transfers
 
