@@ -3,8 +3,9 @@ import os,\
         time,\
         socket,\
         random,\
+        paramiko,\
         threading,\
-        paramiko
+        traceback
 from paramiko import ServerInterface,\
                         AUTH_FAILED,\
                         AUTH_SUCCESSFUL,\
@@ -78,6 +79,14 @@ class FtpServer(object):
         self.handler.authorizer = self.authorizer
         # Instantiate the FTP Server
         self.SRV = ThreadedFTPServer(('0.0.0.0',self.Port), self.handler)
+        # Get Local Server Address
+        try:
+            TEST = socket.socket()
+            TEST.connect(("8.8.8.8", 80))
+            self.Addr = TEST.getsockname()[0]
+        except:
+            print(traceback.format_exc())
+
 
     def _run_server(self):
         self.SRV.serve_forever()
@@ -154,6 +163,16 @@ class SftpServer(object):
         self.Dir = Dir
         self.Port = Port
         self.level = level
+        # Random user/pass
+        self.user = Random_String()
+        self.Pass = Random_String()
+        # Get Local Server Address
+        try:
+            TEST = socket.socket()
+            TEST.connect(("8.8.8.8", 80))
+            self.Addr = TEST.getsockname()[0]
+        except:
+            print(traceback.format_exc())
 
     class _STUBServer(ServerInterface):
         # SubClass of Paramiko ServerInterface
@@ -219,9 +238,7 @@ class SftpServer(object):
             self.srv.start()
 
     def start(self):
-        # Random user/pass and RSA key pair
-        self.user = Random_String()
-        self.Pass = Random_String()
+        # Random RSA key pair
         self._keys = Random_RSA()
         self._keyfile = self._keys['priv']
 
