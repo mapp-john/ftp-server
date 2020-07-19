@@ -4,8 +4,10 @@ import os,\
         socket,\
         random,\
         paramiko,\
+        netifaces,\
         threading,\
         traceback,\
+        socketserver,\
         multiprocessing
 from sftpserver.stub_sftp import StubSFTPServer
 from pyftpdlib.authorizers import DummyAuthorizer
@@ -17,6 +19,10 @@ from paramiko import ServerInterface,\
                         OPEN_SUCCEEDED
 from Crypto.PublicKey import RSA
 from sftpserver.stub_sftp import StubSFTPServer
+from ptftplib.tftpserver import TFTPServer,\
+                                TFTPServerHandler,\
+                                TFTPServerGarbageCollector
+
 
 
 ########################
@@ -42,7 +48,7 @@ def _random_string(num=14):
 # private and public filenames
 #
 def _random_rsa():
-    key = RSA.generate(1024)
+    key = RSA.generate(2048)
     PRIV = ''.join(i for i in [chr(random.randint(97,122)) for i in range(6)])
     f = open(PRIV, "wb")
     f.write(key.exportKey('PEM'))
@@ -61,7 +67,6 @@ def _random_rsa():
 #
 #
 def _get_local_ip():
-    # Get Local Server Address
     try:
         TEST = socket.socket()
         TEST.connect(('8.8.8.8', 53))
@@ -70,6 +75,26 @@ def _get_local_ip():
         return Addr
     except:
         print(traceback.format_exc())
+
+########################
+# Get Local INT
+# Returns interface name as String
+#
+#
+def _get_local_int():
+    INTS = {}
+    for Int in netifaces.interfaces():
+      try:
+        netifaces.ifaddresses(Int)[netifaces.AF_INET]
+        INTS.update({f'{Int}': netifaces.ifaddresses(Int)[netifaces.AF_INET][0]['addr']})
+      except:
+        None
+    Addr = _get_local_ip()
+    for Int,addr in INTS.items():
+        if addr == Addr:
+            return Int
+
+
 
 
 ########################
@@ -259,54 +284,66 @@ class sftp_server(object):
 #        self.SRV.close_all()
 #
 
+########################
+# TFTP Server Sub-Class
+#
+class _tftp_Server(TFTPServer):
+    def __init__(self, iface, root, port,
+                 strict_rfc1350=False, notification_callbacks=None):
+        TFTPServer.__init__(self,iface,root,port)
 
-#########################
-## TFTP Server Class
-## Dir = str()
-##   Ex: '/tmp'
-## Port = int()
-##   Ex: 69
-##
-#class tftp_server(object):
-#    # Create Random Username and Password
-#    def __init__(self,Dir='/tmp',Port=2121):
-#        self.Dir = Dir
-#        self.Port = Port
-#        # Random user/pass
-#        self.User = Random_String()
-#        self.Pass = Random_String()
-#        # Create Dummy Authorizer, with the random user/pass
-#        self.authorizer = DummyAuthorizer()
-#        self.authorizer.add_user(self.User, self.Pass, self.Dir, perm='elradfmw')
-#        self.handler = FTPHandler
-#        self.handler.authorizer = self.authorizer
-#        # Instantiate the FTP Server
-#        self.SRV = ThreadedFTPServer(('0.0.0.0',self.Port), self.handler)
-#        # Get Local Server Address
-#        try:
-#            TEST = socket.socket()
-#            TEST.connect(('8.8.8.8', 53))
-#            self.Addr = TEST.getsockname()[0]
-#            TEST.close()
-#        except:
-#            print(traceback.format_exc())
+
+        if notification_callbacks is None:
+            notification_callbacks = {}
+        self.root, self.port, self.strict_rfc1350 = \
+            root, port, strict_rfc1350
+        self.client_registry = {}
+
+        # Get Local Server Address
+        self.ip = _get_local_ip()
+        self.server = socketserver.UDPServer((self.ip, port),
+                                             TFTPServerHandler)
+        self.server.root = self.root
+        self.server.strict_rfc1350 = self.strict_rfc1350
+        self.server.clients = self.client_registry
+        self.cleanup_thread = TFTPServerGarbageCollector(self.client_registry)
+
+        # Add callback notifications
+        notify.CallbackEngine.install(l, notification_callbacks)
+
+    def serve_forever(self):
+        self.cleanup_thread.start()
+        self.server.serve_forever()
+
+########################
+# TFTP Server Class
+# Dir = str()
+#   Ex: '/tmp'
+# Port = int()
+#   Ex: 69
 #
-#
-#    def _run_server(self):
-#        self.SRV.serve_forever()
-#
-#    def start(self):
-#        # Kick off the serve_forever within a thread
-#        self.srv = threading.Thread(target=self._run_server)
-#        self.srv.deamon = True
-#        self.srv.start()
-#
-#    def stop(self):
-#        # Close all connections immediately
-#        # This will print a Threading Exception to STDOUT, but will not throw a true exception
-#        self.SRV.close_all()
-#
-#
+class tftp_server(object):
+    # Create Random Username and Password
+    def __init__(self,Dir='/tmp',Port=6969):
+        self.Dir = Dir
+        self.Port = Port
+        # Get Local Server Address
+        self.Addr = _get_local_ip()
+        self.Iface = _get_local_int()
+
+    def _run_server(self):
+        self.SRV = TFTPServer(self.Iface, self.Dir, port=self.Port)
+        self.SRV.serve_forever()
+
+    def start(self):
+        # Start separate process calling Run Server function
+        self.srv = multiprocessing.Process(target=self._run_server)
+        self.srv.start()
+
+    def stop(self):
+        # Close all connections immediately
+        self.srv.kill()
+
 
 
 
