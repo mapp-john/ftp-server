@@ -5,7 +5,8 @@ import os,\
         random,\
         paramiko,\
         threading,\
-        traceback
+        traceback,\
+        multiprocessing
 from sftpserver.stub_sftp import StubSFTPServer
 from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler #, TLS_FTPHandler ##Apparently the TLS module doesn't exist in Python3
@@ -197,14 +198,13 @@ class sftp_server(object):
         self._keyfile = self._keys['priv']
 
         # Start Thread calling Run Server function
-        self.srv = threading.Thread(target=self._run_server)
-        self.srv.deamon = True
-        self.srv.start()
+        self.srvA = multiprocessing.Process(target=self._run_server)
+        self.srvA.start()
 
     def stop(self):
         # Close server socket immediately
         # This will print a Threading Exception to STDOUT, but will not throw a true exception
-        self.server_socket.close()
+        self.srvA.kill()
         os.remove(self._keys['priv'])
         os.remove(self._keys['pub'])
 
