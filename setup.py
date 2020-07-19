@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="xftpd",
-    version="0.0.4",
+    version="0.0.Dev3",
     author="John Mapp",
     author_email="spidermonkey2012@gmail.com",
     description="XFTPD Server: SFTP and FTP server Class that can be started and stopped programmatically.",
