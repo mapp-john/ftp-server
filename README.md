@@ -16,10 +16,12 @@
 >>> SFTP.start()
 >>> print(SFTP.Addr)
 10.8.2.5
->>> print(SFTP.user)
+>>> print(SFTP.User)
 w7Kg0Fo4Xp6Xo9C
 >>> print(SFTP.Pass)
 k2Ea0Ko4Rz6Gz3Z
+>>>
+>>> SFTP.stop()
 >>>
 ```
 
@@ -52,31 +54,12 @@ Type "help", "copyright", "credits" or "license" for more information.
 [I 2020-07-15 21:14:48] passive ports: None
 >>> print(SFTP.Addr)
 10.8.2.5
->>> print(FTP.user)
+>>> print(FTP.User)
 h0Dy0Yq9Ks0Dm3T
 >>> print(FTP.Pass)
 m5Sg2Yk5Mk8Fa4K
 >>>
-```
-
-### When the ```stop()``` function is called, the thread will print an Exception to STDOUT, but this will not be an Exception for the codeblock calling the function
-```python
->>> Exception in thread Thread-1:
-Traceback (most recent call last):
-  File "/usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib/python3.7/threading.py", line 926, in _bootstrap_inner
-    self.run()
-  File "/usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib/python3.7/threading.py", line 870, in run
-    self._target(*self._args, **self._kwargs)
-  File "/Users/blah/TEMP/ftp_server.py", line 17, in _run_server
-    self.SRV.serve_forever()
-  File "/usr/local/lib/python3.7/site-packages/pyftpdlib/servers.py", line 478, in serve_forever
-    self.ioloop.loop(timeout, blocking)
-  File "/usr/local/lib/python3.7/site-packages/pyftpdlib/ioloop.py", line 343, in loop
-    poll(timeout)
-  File "/usr/local/lib/python3.7/site-packages/pyftpdlib/ioloop.py", line 709, in poll
-    timeout)
-OSError: [Errno 9] Bad file descriptor
-
->>>
+>>> FTP.stop()
 >>>
 ```
+

@@ -23,7 +23,7 @@ from sftpserver.stub_sftp import StubSFTPServer
 # Random Password Generator
 # Returns 14 character string
 #
-def random_string(num=14):
+def _random_string(num=14):
     Random_Str = ''
     char = 'abcdefghijklmnopqrstuvwxyz'
     CHAR = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -41,7 +41,7 @@ def random_string(num=14):
 # Returns dictionary with
 # private and public filenames
 #
-def random_rsa():
+def _random_rsa():
     key = RSA.generate(1024)
     PRIV = ''.join(i for i in [chr(random.randint(97,122)) for i in range(6)])
     f = open(PRIV, "wb")
@@ -54,6 +54,22 @@ def random_rsa():
     f.close()
     return {'priv':PRIV,'pub':PUB}
 
+
+########################
+# Get Local IP
+# Returns IP Address as String
+#
+#
+def _get_local_ip():
+    # Get Local Server Address
+    try:
+        TEST = socket.socket()
+        TEST.connect(('8.8.8.8', 53))
+        Addr = TEST.getsockname()[0]
+        TEST.close()
+        return Addr
+    except:
+        print(traceback.format_exc())
 
 
 ########################
@@ -68,39 +84,30 @@ class ftp_server(object):
     def __init__(self,Dir='/tmp',Port=2121):
         self.Dir = Dir
         self.Port = Port
-        # Random user/pass
-        self.user = Random_String()
-        self.Pass = Random_String()
+        # Get Local Server Address
+        self.Addr = _get_local_ip()
+
+    def _run_server(self):
         # Create Dummy Authorizer, with the random user/pass
         self.authorizer = DummyAuthorizer()
-        self.authorizer.add_user(self.user, self.Pass, self.Dir, perm='elradfmw')
+        self.authorizer.add_user(self.User, self.Pass, self.Dir, perm='elradfmw')
         self.handler = FTPHandler
         self.handler.authorizer = self.authorizer
         # Instantiate the FTP Server
         self.SRV = ThreadedFTPServer(('0.0.0.0',self.Port), self.handler)
-        # Get Local Server Address
-        try:
-            TEST = socket.socket()
-            TEST.connect(('8.8.8.8', 53))
-            self.Addr = TEST.getsockname()[0]
-            TEST.close()
-        except:
-            print(traceback.format_exc())
-
-
-    def _run_server(self):
         self.SRV.serve_forever()
 
     def start(self):
-        # Kick off the serve_forever within a thread
-        self.srv = threading.Thread(target=self._run_server)
-        self.srv.deamon = True
+        # Random user/pass
+        self.User = _random_string()
+        self.Pass = _random_string()
+        # Start separate process calling Run Server function
+        self.srv = multiprocessing.Process(target=self._run_server)
         self.srv.start()
 
     def stop(self):
         # Close all connections immediately
-        # This will print a Threading Exception to STDOUT, but will not throw a true exception
-        self.SRV.close_all()
+        self.srv.kill()
 
 
 ########################
@@ -117,28 +124,19 @@ class sftp_server(object):
         self.Dir = Dir
         self.Port = Port
         self.level = level
-        # Random user/pass
-        self.user = random_string()
-        self.Pass = random_string()
         # Get Local Server Address
-        try:
-            TEST = socket.socket()
-            TEST.connect(('8.8.8.8', 53))
-            self.Addr = TEST.getsockname()[0]
-            TEST.close()
-        except:
-            print(traceback.format_exc())
+        self.Addr = _get_local_ip()
 
     class _stub_server(ServerInterface):
         # SubClass of Paramiko ServerInterface
         # Allowing authentication only for random user/pass
-        def __init__(self,user,Pass):
-            self.user = user
+        def __init__(self,User,Pass):
+            self.User = User
             self.Pass = Pass
 
         def check_auth_password(self, username, password):
             # Only randomly generated user/pass is allowed
-            if (username == self.user) and (password == self.Pass):
+            if (username == self.User) and (password == self.Pass):
                 return AUTH_SUCCESSFUL
             else:
                 return AUTH_FAILED
@@ -150,11 +148,11 @@ class sftp_server(object):
             # List availble auth mechanisms
             return 'password'
 
-    class conn_handler_thd(threading.Thread):
+    class _conn_handler_thd(threading.Thread):
         # Custom Connection Handler Thread for running server
-        def __init__(self, conn, SRV, user, Pass, Dir, keyfile):
+        def __init__(self, conn, SRV, User, Pass, Dir, keyfile):
             threading.Thread.__init__(self)
-            self.user = user
+            self.User = User
             self.Pass = Pass
             self.Dir = Dir
             self.SRV = SRV
@@ -185,19 +183,22 @@ class sftp_server(object):
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
         self.server_socket.bind(('0.0.0.0', self.Port))
         self.server_socket.listen(10)
-        self.SRV = self._stub_server(self.user,self.Pass)
+        self.SRV = self._stub_server(self.User,self.Pass)
         while True:
             self._conn, self.addr = self.server_socket.accept()
-            self.srv = self.conn_handler_thd(self._conn, self.SRV, self.user, self.Pass, self.Dir, self._keyfile)
+            self.srv = self._conn_handler_thd(self._conn, self.SRV, self.User, self.Pass, self.Dir, self._keyfile)
             self.srv.deamon = True
             self.srv.start()
 
     def start(self):
+        # Random user/pass
+        self.User = _random_string()
+        self.Pass = _random_string()
         # Random RSA key pair
-        self._keys = random_rsa()
+        self._keys = _random_rsa()
         self._keyfile = self._keys['priv']
 
-        # Start Thread calling Run Server function
+        # Start separate process calling Run Server function
         self.srvA = multiprocessing.Process(target=self._run_server)
         self.srvA.start()
 
@@ -235,10 +236,10 @@ class sftp_server(object):
 #        self.Port = Port
 #        self.cert = cert
 #        self.key = key
-#        self.user = Random_String()
+#        self.User = Random_String()
 #        self.Pass = Random_String()
 #        self.authorizer = DummyAuthorizer()
-#        self.authorizer.add_user(self.user, self.Pass, self.Dir, perm='elradfmw')
+#        self.authorizer.add_User(self.User, self.Pass, self.Dir, perm='elradfmw')
 #        self.handler = TLS_FTPHandler
 #        self.handler.certfile = self.cert
 #        self.handler.keyfile = self.key
@@ -272,11 +273,11 @@ class sftp_server(object):
 #        self.Dir = Dir
 #        self.Port = Port
 #        # Random user/pass
-#        self.user = Random_String()
+#        self.User = Random_String()
 #        self.Pass = Random_String()
 #        # Create Dummy Authorizer, with the random user/pass
 #        self.authorizer = DummyAuthorizer()
-#        self.authorizer.add_user(self.user, self.Pass, self.Dir, perm='elradfmw')
+#        self.authorizer.add_user(self.User, self.Pass, self.Dir, perm='elradfmw')
 #        self.handler = FTPHandler
 #        self.handler.authorizer = self.authorizer
 #        # Instantiate the FTP Server
