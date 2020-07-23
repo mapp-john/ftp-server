@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="xftpd",
-    version="0.0.Dev3",
+    version="0.0.Dev8",
     author="John Mapp",
     author_email="spidermonkey2012@gmail.com",
     description="XFTPD Server: SFTP and FTP server Class that can be started and stopped programmatically.",
@@ -18,5 +18,13 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
+    install_requires=['netifaces',
+                      'sftpserver',
+                      'pyftpdlib',
+                      'paramiko',
+                      'fbtftp',
+                      'py3tftp',
+                      'ptftpd',
+                      'cryptography'],
     python_requires='>=3.6',
 )

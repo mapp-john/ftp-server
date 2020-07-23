@@ -9,7 +9,6 @@ import os,\
         traceback,\
         socketserver,\
         multiprocessing
-from sftpserver.stub_sftp import StubSFTPServer
 from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler #, TLS_FTPHandler ##Apparently the TLS module doesn't exist in Python3
 from pyftpdlib.servers import ThreadedFTPServer
@@ -17,8 +16,21 @@ from paramiko import ServerInterface,\
                         AUTH_FAILED,\
                         AUTH_SUCCESSFUL,\
                         OPEN_SUCCEEDED
-from Crypto.PublicKey import RSA
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+
 from sftpserver.stub_sftp import StubSFTPServer
+from fbtftp.base_handler import BaseHandler,\
+                                ResponseData
+from fbtftp.base_server import BaseServer
+
+####
+import asyncio
+from py3tftp.protocols import TFTPServerProtocol
+
+
+####
 from ptftplib.tftpserver import TFTPServer,\
                                 TFTPServerHandler,\
                                 TFTPServerGarbageCollector
@@ -48,17 +60,31 @@ def _random_string(num=14):
 # private and public filenames
 #
 def _random_rsa():
-    key = RSA.generate(2048)
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+    priv = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption()
+    )
     PRIV = ''.join(i for i in [chr(random.randint(97,122)) for i in range(6)])
     f = open(PRIV, "wb")
-    f.write(key.exportKey('PEM'))
+    f.write(priv)
     f.close()
-    pubkey = key.publickey()
+    pub = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
     PUB = ''.join(i for i in [chr(random.randint(97,122)) for i in range(6)])
     f = open(PUB, "wb")
-    f.write(pubkey.exportKey('OpenSSH'))
+    f.write(pub)
     f.close()
     return {'priv':PRIV,'pub':PUB}
+
+
 
 
 ########################
@@ -69,7 +95,7 @@ def _random_rsa():
 def _get_local_ip():
     try:
         TEST = socket.socket()
-        TEST.connect(('8.8.8.8', 53))
+        TEST.connect(('google.com', 443))
         Addr = TEST.getsockname()[0]
         TEST.close()
         return Addr
@@ -109,8 +135,10 @@ class ftp_server(object):
     def __init__(self,Dir='/tmp',Port=2121):
         self.Dir = Dir
         self.Port = Port
-        # Get Local Server Address
+        # Get Local Server Address and Interface Name
         self.Addr = _get_local_ip()
+        self.Iface = _get_local_int()
+
 
     def _run_server(self):
         # Create Dummy Authorizer, with the random user/pass
@@ -149,8 +177,9 @@ class sftp_server(object):
         self.Dir = Dir
         self.Port = Port
         self.level = level
-        # Get Local Server Address
+        # Get Local Server Address and Interface Name
         self.Addr = _get_local_ip()
+        self.Iface = _get_local_int()
 
     class _stub_server(ServerInterface):
         # SubClass of Paramiko ServerInterface
@@ -211,9 +240,9 @@ class sftp_server(object):
         self.SRV = self._stub_server(self.User,self.Pass)
         while True:
             self._conn, self.addr = self.server_socket.accept()
-            self.srv = self._conn_handler_thd(self._conn, self.SRV, self.User, self.Pass, self.Dir, self._keyfile)
-            self.srv.deamon = True
-            self.srv.start()
+            self.srvA = self._conn_handler_thd(self._conn, self.SRV, self.User, self.Pass, self.Dir, self._keyfile)
+            self.srvA.deamon = True
+            self.srvA.start()
 
     def start(self):
         # Random user/pass
@@ -224,13 +253,13 @@ class sftp_server(object):
         self._keyfile = self._keys['priv']
 
         # Start separate process calling Run Server function
-        self.srvA = multiprocessing.Process(target=self._run_server)
-        self.srvA.start()
+        self.srv = multiprocessing.Process(target=self._run_server)
+        self.srv.start()
 
     def stop(self):
         # Close server socket immediately
         # This will print a Threading Exception to STDOUT, but will not throw a true exception
-        self.srvA.kill()
+        self.srv.kill()
         os.remove(self._keys['priv'])
         os.remove(self._keys['pub'])
 
@@ -287,6 +316,52 @@ class sftp_server(object):
 ########################
 # TFTP Server Sub-Class
 #
+class _tftp_ServerB:
+    def __init__(self, Dir, Port):
+        self.Dir = Dir
+        self.Port = Port
+        self.Addr = _get_local_ip()
+        self.loop = asyncio.get_event_loop()
+        self.srvA = self.loop.create_datagram_endpoint(
+            lambda: TFTPServerProtocol(self.Addr, self.loop, None),
+            local_addr=(self.Addr, self.Port,))
+        self.transport, self.protocol = self.loop.run_until_complete(self.srvA)
+    def serve_forever(self):
+        self.loop.run_forever()
+
+########################
+# TFTP Server Class
+# Dir = str()
+#   Ex: '/tmp'
+# Port = int()
+#   Ex: 69
+#
+class tftp_serverB(object):
+    # Create Random Username and Password
+    def __init__(self,Dir='/tmp',Port=6969):
+        self.Dir = Dir
+        self.Port = Port
+        # Get Local Server Address and Interface
+        self.Addr = _get_local_ip()
+        self.Iface = _get_local_int()
+
+    def _run_server(self):
+        self.SRV = _tftp_ServerB(self.Dir, self.Port)
+        self.SRV.serve_forever()
+
+    def start(self):
+        # Start separate process calling Run Server function
+        self.srv = multiprocessing.Process(target=self._run_server)
+        self.srv.start()
+
+    def stop(self):
+        # Close all connections immediately
+        self.srv.kill()
+
+
+########################
+# TFTP Server Sub-Class based on ptftplib
+#
 class _tftp_Server(TFTPServer):
     def __init__(self, iface, root, port,
                  strict_rfc1350=False, notification_callbacks=None):
@@ -327,7 +402,7 @@ class tftp_server(object):
     def __init__(self,Dir='/tmp',Port=6969):
         self.Dir = Dir
         self.Port = Port
-        # Get Local Server Address
+        # Get Local Server Address and Interface
         self.Addr = _get_local_ip()
         self.Iface = _get_local_int()
 
@@ -344,6 +419,127 @@ class tftp_server(object):
         # Close all connections immediately
         self.srv.kill()
 
+
+
+
+########################
+# FBTFTP Server Class Only Compatible with Linux
+# Dir = str()
+#   Ex: '/tmp'
+# Port = int()
+#   Ex: 69
+#
+class fb_tftp_server(object):
+    def __init__(self,Dir='/tmp',Port=6969):
+        self.Dir = Dir
+        self.Port = Port
+        self.Addr = _get_local_ip()
+        self.Iface = _get_local_int()
+    def _run_server(self):
+        self.SRV = _tftp_StaticServer(self.Addr, self.Port, retries=3, timeout=5,
+                                    root=self.Dir, handler_stats_callback=None,
+                                    server_stats_callback=None)
+        self.SRV.run()
+        self.SRV.serve_forever()
+    def start(self):
+        self.srv = multiprocessing.Process(target=self._run_server)
+        self.srv.start()
+    def stop(self):
+        self.srv.kill()
+
+
+class _tftp_FileResponseData(ResponseData):
+    def __init__(self, path):
+        self._size = os.stat(path).st_size
+        self._reader = open(path, 'rb')
+    def read(self, n):
+        return self._reader.read(n)
+    def size(self):
+        return self._size
+    def close(self):
+        self._reader.close()
+
+
+class _tftp_StaticHandler(BaseHandler):
+    def __init__(self, server_addr, peer, path, options, root, stats_callback):
+        self._root = root
+        BaseHandler.__init__(self,server_addr, peer, path, options, stats_callback)
+    def get_response_data(self):
+        return _tftp_FileResponseData(os.path.join(self._root, self._path))
+
+
+class _tftp_StaticServer(BaseServer):
+    def __init__(self, address, port, retries, timeout, root,
+                 handler_stats_callback, server_stats_callback=None):
+        self._root = root
+        self._handler_stats_callback = handler_stats_callback
+        BaseServer.__init__(self,address, port, retries, timeout, server_stats_callback)
+    def get_handler(self, server_addr, peer, path, options):
+        return _tftp_StaticHandler(
+            server_addr, peer, path, options, self._root,
+            self._handler_stats_callback)
+
+
+#from fbtftp.base_handler import BaseHandler
+#from fbtftp.base_handler import ResponseData
+#from fbtftp.base_server import BaseServer
+#
+#import os
+#
+#class FileResponseData(ResponseData):
+#    def __init__(self, path):
+#        self._size = os.stat(path).st_size
+#        self._reader = open(path, 'rb')
+#
+#    def read(self, n):
+#        return self._reader.read(n)
+#
+#    def size(self):
+#        return self._size
+#
+#    def close(self):
+#        self._reader.close()
+#
+#def print_session_stats(stats):
+#    print(stats)
+#
+#def print_server_stats(stats):
+#    counters = stats.get_and_reset_all_counters()
+#    print('Server stats - every {} seconds'.format(stats.interval))
+#    print(counters)
+#
+#class StaticHandler(BaseHandler):
+#    def __init__(self, server_addr, peer, path, options, root, stats_callback):
+#        self._root = root
+#        super().__init__(server_addr, peer, path, options, stats_callback)
+#
+#    def get_response_data(self):
+#        return FileResponseData(os.path.join(self._root, self._path))
+#
+#class StaticServer(BaseServer):
+#    def __init__(self, address, port, retries, timeout, root,
+#                 handler_stats_callback, server_stats_callback=None):
+#        self._root = root
+#        self._handler_stats_callback = handler_stats_callback
+#        super().__init__(address, port, retries, timeout, server_stats_callback)
+#
+#    def get_handler(self, server_addr, peer, path, options):
+#        return StaticHandler(
+#            server_addr, peer, path, options, self._root,
+#            self._handler_stats_callback)
+#
+#def main():
+#    server = StaticServer(address='10.81.127.231', port=1069, retries=3, timeout=5,
+#                          root=os.getcwd(),
+#                          handler_stats_callback=print_session_stats,
+#                          server_stats_callback=print_server_stats)
+#    try:
+#        server.run()
+#    except KeyboardInterrupt:
+#        server.close()
+#
+#if __name__ == '__main__':
+#    main()
 
 
 
