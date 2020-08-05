@@ -16,10 +16,6 @@ from paramiko import ServerInterface,\
                         AUTH_FAILED,\
                         AUTH_SUCCESSFUL,\
                         OPEN_SUCCEEDED
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-
 from sftpserver.stub_sftp import StubSFTPServer
 from fbtftp.base_handler import BaseHandler,\
                                 ResponseData
@@ -60,6 +56,10 @@ def _random_string(num=14):
 # private and public filenames
 #
 def _random_rsa():
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
     private_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048,
@@ -84,6 +84,83 @@ def _random_rsa():
     f.close()
     return {'priv':PRIV,'pub':PUB}
 
+
+
+from datetime import datetime, timedelta
+import ipaddress
+
+########################
+# Random X509 Certificate Generator
+# Returns dictionary with
+#   private and public filenames
+# Generates self signed certificate
+#   for a hostname, and optional IP addresses.
+#
+def _selfsign_x509(hostname, ip_addresses=None, key=None):
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    # Generate RSA key
+    if key is None:
+        key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend(),
+        )
+    name = x509.Name([
+        x509.NameAttribute(NameOID.COMMON_NAME, hostname)
+    ])
+
+    alt_names = [x509.DNSName(hostname)]
+
+    # allow addressing by IP, for when you don't have real DNS (common in most testing scenarios
+    if ip_addresses:
+        for addr in ip_addresses:
+            # openssl wants DNSnames for ips...
+            alt_names.append(x509.DNSName(addr))
+            # ... whereas golang's crypto/tls is stricter, and needs IPAddresses
+            # note: older versions of cryptography do not understand ip_address objects
+            alt_names.append(x509.IPAddress(ipaddress.ip_address(addr)))
+
+    san = x509.SubjectAlternativeName(alt_names)
+
+    # path_len=0 means this cert can only sign itself, not other certs.
+    basic_contraints = x509.BasicConstraints(ca=True, path_length=0)
+    now = datetime.utcnow()
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(1000)
+        .not_valid_before(now)
+        .not_valid_after(now + timedelta(days=10*365))
+        .add_extension(basic_contraints, False)
+        .add_extension(san, False)
+        .sign(key, hashes.SHA256(), default_backend())
+    )
+    pub = cert.public_bytes(encoding=serialization.Encoding.PEM)
+    PUB = ''.join(i for i in [chr(random.randint(97,122)) for i in range(6)])
+    f = open(PUB, "wb")
+    f.write(pub)
+    f.close()
+
+    priv = key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    PRIV = ''.join(i for i in [chr(random.randint(97,122)) for i in range(6)])
+    f = open(PRIV, "wb")
+    f.write(priv)
+    f.close()
+
+
+    return {'priv':PRIV,'pub':PUB}
 
 
 
@@ -132,7 +209,7 @@ def _get_local_int():
 #
 class ftp_server(object):
     # Create Random Username and Password
-    def __init__(self,Dir='/tmp',Port=2121):
+    def __init__(self,Dir=os.getcwd(),Port=2121):
         self.Dir = Dir
         self.Port = Port
         # Get Local Server Address and Interface Name
@@ -173,7 +250,7 @@ class ftp_server(object):
 #   Ex: 'DEBUG'
 #
 class sftp_server(object):
-    def __init__(self,Dir='/tmp',Port=22,level='INFO'):
+    def __init__(self,Dir=os.getcwd(),Port=22,level='INFO'):
         self.Dir = Dir
         self.Port = Port
         self.level = level
